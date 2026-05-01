@@ -24,16 +24,20 @@ jobs:
 
       - name: Build FFmpeg via Android Maker
         run: |
+          # 1. Install alat tempur lengkap
           sudo apt-get update
           sudo apt-get install -y build-essential nasm yasm cmake ninja-build pkg-config autoconf libtool
-          
+
+          # 2. Persiapan Folder Maker
           git clone https://github.com/Javernaut/ffmpeg-android-maker.git
           cd ffmpeg-android-maker
-          
+
+          # 3. Export alamat SDK & NDK biar gak error
           export ANDROID_SDK_HOME=/usr/local/lib/android/sdk
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
-          
+
+          # 4. Jalankan perakit dengan fitur Full Power (HTTPS + GPL)
           ./ffmpeg-android-maker.sh \
             --target-abis=arm64-v8a \
             --enable-openssl \
@@ -43,16 +47,13 @@ jobs:
 
       - name: Lacak Keberadaan Badak (Debug)
         run: |
-          echo "--- MENCARI SEMUA FILE .SO ---"
-          find . -name "*.so"
+          echo "--- DAFTAR FILE .SO YANG BERHASIL DIBUAT ---"
+          find ffmpeg-android-maker/output -name "*.so"
 
-      - name: Upload Pasukan Badak
+      - name: Upload Pasukan Badak (.so)
         uses: actions/upload-artifact@v4
         with:
           name: pasukan-badak-bigo
-          # PAKAI CARA INI: Ambil semua folder lib arm64 biar gak ada yang ketinggalan
-          path: |
-            ffmpeg-android-maker/output/lib/arm64-v8a/*.so
-            ffmpeg-android-maker/output/lib/arm64-v8a/
+          # KUNCINYA DI SINI: Pakai tanda bintang (*) agar semua file .so terangkut
+          path: ffmpeg-android-maker/output/lib/arm64-v8a/*.so
           if-no-files-found: error
- 
