@@ -34,7 +34,6 @@ jobs:
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
           
-          # Kita tambahkan --enable-gpl agar x264 & x265 aktif!
           ./ffmpeg-android-maker.sh \
             --target-abis=arm64-v8a \
             --enable-openssl \
@@ -42,14 +41,14 @@ jobs:
             --enable-libx264 \
             --enable-libx265
 
-      - name: Intip Lokasi File
+      - name: Cek Hasil Rakitan
         run: |
-          echo "--- CEK LOKASI HASIL RAKITAN ---"
-          find ffmpeg-android-maker/output -name "*.so"
+          echo "--- DAFTAR FILE .SO YANG DITEMUKAN ---"
+          find ffmpeg-android-maker/output/lib/arm64-v8a/ -name "*.so"
 
       - name: Upload Pasukan Badak (.so)
         uses: actions/upload-artifact@v4
         with:
           name: pasukan-badak-bigo
-          # Kita ambil folder lib-nya saja secara keseluruhan
-          path: ffmpeg-android-maker/output/lib/arm64-v8a/
+          # KUNCINYA DI SINI: Kita ambil SEMUA yang berakhiran .so
+          path: ffmpeg-android-maker/output/lib/arm64-v8a/*.so
