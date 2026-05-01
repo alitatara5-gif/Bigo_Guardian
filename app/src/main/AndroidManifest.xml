@@ -18,7 +18,6 @@
         
         <service 
             android:name=".RecorderService" 
-            android:exported="false" 
-            android:foregroundServiceType="mediaPlayback" />
+            android:exported="false" />
     </application>
 </manifest>
