@@ -11,7 +11,7 @@ import android.net.Uri;
 
 public class MainActivity extends Activity {
     TextView txtStatus;
-    // URUTAN SAKTI: avutil WAJIB sebelum avcodec/avformat
+    // Urutan sakti: c++_shared dan avutil harus di depan!
     String[] libs = {
         "c++_shared", "avutil", "swresample", "avcodec", 
         "avformat", "swscale", "avfilter", "avdevice", "bigoguardian_engine"
@@ -23,13 +23,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         txtStatus = findViewById(R.id.txtStatus);
 
-        // 1 & 2. Logika Izin
         handlePermissions();
-        
-        // 3. Logika Konfirmasi 7 File .so
         checkEngine();
-        
-        // 4. Logika Mulai Rekaman
         setupUI();
     }
 
@@ -70,7 +65,7 @@ public class MainActivity extends Activity {
                     Intent it = new Intent(this, RecorderService.class);
                     it.putExtra("url", url);
                     startService(it);
-                    Toast.makeText(this, "Rekaman Dimulai...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Rekaman Berjalan...", Toast.LENGTH_SHORT).show();
                 }
             });
         }
