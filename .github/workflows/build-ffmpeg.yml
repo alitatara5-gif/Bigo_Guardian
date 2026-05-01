@@ -24,29 +24,35 @@ jobs:
 
       - name: Build FFmpeg via Android Maker
         run: |
-          # 1. Install alat tempur
+          # 1. Install Alat Tempur Lengkap
           sudo apt-get update
-          sudo apt-get install -y build-essential nasm yasm cmake ninja-build pkg-config
+          sudo apt-get install -y build-essential nasm yasm cmake ninja-build pkg-config autoconf libtool
 
-          # 2. Persiapan Folder
+          # 2. Persiapan Folder Proyek Maker
           git clone https://github.com/Javernaut/ffmpeg-android-maker.git
           cd ffmpeg-android-maker
 
-          # 3. EXPORT LANGSUNG (Ini kuncinya, Bang!)
-          # Kita arahkan ke folder standar SDK di GitHub Runner
+          # 3. Export Alamat Penting (Agar tidak error Not Defined)
           export ANDROID_SDK_HOME=/usr/local/lib/android/sdk
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
 
-          # 4. Jalankan Perakit
+          # 4. Mulai Merakit (Target arm64-v8a untuk Infinix)
+          # Kita tambahkan OpenSSL agar HTTPS Bigo Gacor!
           ./ffmpeg-android-maker.sh \
             --target-abis=arm64-v8a \
             --enable-openssl \
             --enable-libx264 \
             --enable-libx265
 
-      - name: Upload Hasil Jadi (.so)
+      - name: List Files (Cek Lokasi Hasil Rakitan)
+        run: |
+          echo "--- DAFTAR PASUKAN .SO YANG BERHASIL DIBUAT ---"
+          find ffmpeg-android-maker/output -name "*.so"
+
+      - name: Upload Semua Library (.so)
         uses: actions/upload-artifact@v4
         with:
-          name: libffmpeg-sakti-abang
-          path: ffmpeg-android-maker/output/lib/arm64-v8a/libffmpeg.so
+          name: pasukan-badak-bigo
+          # Menangkap semua file .so di dalam folder output
+          path: ffmpeg-android-maker/output/lib/arm64-v8a/*.so
