@@ -17,23 +17,20 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    // Load library native-lib.cpp
     static {
         System.loadLibrary("native-lib");
     }
 
-    // Deklarasi fungsi C++
     public native String stringFromJNI();
     public native int startRecording(String url, String output);
+    public native void stopRecording();
 
     private TextView tvStatus;
-    private EditText etUrl;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // --- MEMBUAT UI TANPA XML (Supaya simpel di Termux) ---
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(40, 40, 40, 40);
@@ -41,62 +38,56 @@ public class MainActivity extends AppCompatActivity {
         TextView tvTitle = new TextView(this);
         tvTitle.setText("BIGO GUARDIAN POSIX");
         tvTitle.setTextSize(24);
-        tvTitle.setPadding(0, 0, 0, 20);
         layout.addView(tvTitle);
 
         TextView tvInfo = new TextView(this);
-        tvInfo.setText(stringFromJNI()); // Menampilkan versi FFmpeg
+        tvInfo.setText(stringFromJNI());
         tvInfo.setPadding(0, 0, 0, 40);
         layout.addView(tvInfo);
 
-        etUrl = new EditText(this);
-        etUrl.setHint("Masukkan URL Stream (m3u8/flv)...");
+        final EditText etUrl = new EditText(this);
+        etUrl.setHint("Masukkan URL Stream...");
         layout.addView(etUrl);
 
-        Button btnRecord = new Button(this);
+        final Button btnRecord = new Button(this);
         btnRecord.setText("MULAI REKAM");
-        btnRecord.setPadding(0, 20, 0, 20);
         layout.addView(btnRecord);
 
-        // Tempat Log/Status
+        final Button btnStop = new Button(this);
+        btnStop.setText("STOP REKAM");
+        btnStop.setEnabled(false); // Disable dulu sebelum rekam
+        layout.addView(btnStop);
+
         tvStatus = new TextView(this);
         tvStatus.setText("\nStatus: Ready...");
-        
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.addView(tvStatus);
-        layout.addView(scrollView);
+        ScrollView scroller = new ScrollView(this);
+        scroller.addView(tvStatus);
+        layout.addView(scroller);
 
         setContentView(layout);
 
-        // --- LOGIKA TOMBOL REKAM ---
-        btnRecord.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String url = etUrl.getText().toString().trim();
-                
-                if (url.isEmpty()) {
-                    Toast.makeText(MainActivity.this, "URL jangan kosong, Bang!", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+        btnRecord.setOnClickListener(v -> {
+            String url = etUrl.getText().toString().trim();
+            if (url.isEmpty()) return;
 
-                // Buat nama file otomatis: Bigo_20260501_1800.mp4
-                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(new Date());
-                File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                String outputPath = new File(downloadDir, "Bigo_" + timeStamp + ".mp4").getAbsolutePath();
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(new Date());
+            File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            String outputPath = new File(downloadDir, "Bigo_" + timeStamp + ".mp4").getAbsolutePath();
 
-                tvStatus.append("\n\n[Mulai] Menghubungkan ke stream...");
-                tvStatus.append("\n[Simpan] " + outputPath);
-
-                // Jalankan fungsi native (C++)
-                // Di tahap ini, ini masih memanggil fungsi 'dummy' kita tadi
-                int result = startRecording(url, outputPath);
-
-                if (result == 0) {
-                    tvStatus.append("\n[Sukses] Mesin perekam dipicu!");
-                } else {
-                    tvStatus.append("\n[Error] Gagal memicu mesin!");
-                }
+            int result = startRecording(url, outputPath);
+            if (result == 0) {
+                tvStatus.append("\n[Mulai] Rekaman berjalan...");
+                btnRecord.setEnabled(false);
+                btnStop.setEnabled(true);
             }
+        });
+
+        btnStop.setOnClickListener(v -> {
+            stopRecording();
+            tvStatus.append("\n[Berhenti] Menyimpan file...");
+            btnRecord.setEnabled(true);
+            btnStop.setEnabled(false);
+            Toast.makeText(this, "Rekaman Berhenti!", Toast.LENGTH_SHORT).show();
         });
     }
 }
