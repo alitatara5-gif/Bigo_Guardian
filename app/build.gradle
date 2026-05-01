@@ -12,10 +12,11 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        
         externalNativeBuild {
             cmake {
-                cppFlags "-std=c++17"
-                abiFilters 'arm64-v8a'
+                cppFlags ""
+                abiFilters "arm64-v8a"
             }
         }
     }
@@ -25,9 +26,26 @@ android {
             minifyEnabled false
         }
     }
+    
     externalNativeBuild {
         cmake {
             path "src/main/cpp/CMakeLists.txt"
         }
     }
+
+    // INI KUNCINYA: Paksa Gradle masukin folder jniLibs
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
 }
