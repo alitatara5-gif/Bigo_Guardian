@@ -1,90 +1,67 @@
 #include <jni.h>
 #include <string>
-#include <thread>
-#include <atomic>
 #include <android/log.h>
 
 extern "C" {
 #include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
 }
 
-std::atomic<bool> keep_running(false);
-JavaVM* g_vm = nullptr;
-jobject g_obj = nullptr;
+#define LOG_TAG "BIGO_NATIVE"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-// Fungsi buat kirim text ke layar HP
-void send_to_java(const char* msg) {
-    JNIEnv* env;
-    if (g_vm->AttachCurrentThread(&env, NULL) == JNI_OK) {
-        jclass clazz = env->GetObjectClass(g_obj);
-        jmethodID methodId = env->GetMethodID(clazz, "updateStatusFromNative", "(Ljava/lang/String;)V");
-        jstring jmsg = env->NewStringUTF(msg);
-        env->CallVoidMethod(g_obj, methodId, jmsg);
-        env->DeleteLocalRef(jmsg);
-        g_vm->DetachCurrentThread();
-    }
-}
+extern "C" JNIEXPORT jint JNICALL
+Java_com_example_bigoguardian_Recorder_executeRemux(JNIEnv *env, jobject thiz, jstring input_url, jstring output_path) {
+    const char *in_url = env->GetStringUTFChars(input_url, 0);
+    const char *out_path = env->GetStringUTFChars(output_path, 0);
 
-void record_stream(std::string url, std::string out) {
-    AVFormatContext *ifmt = NULL, *ofmt = NULL;
+    AVFormatContext *ifmt_ctx = nullptr, *ofmt_ctx = nullptr;
     AVPacket pkt;
-    
-    if (avformat_open_input(&ifmt, url.c_str(), NULL, NULL) < 0) {
-        send_to_java("[Error] Gagal konek ke URL. URL mati?");
-        return;
-    }
-    
-    send_to_java("[Info] Stream terhubung! Menyiapkan file...");
+    int ret;
 
-    avformat_alloc_output_context2(&ofmt, NULL, NULL, out.c_str());
-    if (!ofmt) {
-        send_to_java("[Error] Gagal buat file output.");
-        return;
+    LOGI("[START] Menghubungkan ke: %s", in_url);
+
+    if ((ret = avformat_open_input(&ifmt_ctx, in_url, nullptr, nullptr)) < 0) {
+        LOGE("[ERROR] Gagal buka input: %d", ret);
+        return ret;
     }
 
-    // ... (Logika remuxing sama seperti sebelumnya) ...
-    // Tambahkan send_to_java di titik-titik krusial
-    
-    avformat_write_header(ofmt, NULL);
-    send_to_java("[Status] SEDANG MEREKAM...");
+    avformat_alloc_output_context2(&ofmt_ctx, nullptr, nullptr, out_path);
+    if (!ofmt_ctx) return -1;
 
-    while (keep_running) {
-        if (av_read_frame(ifmt, &pkt) < 0) break;
-        // ... simpan paket ...
+    for (int i = 0; i < ifmt_ctx->nb_streams; i++) {
+        AVStream *in_stream = ifmt_ctx->streams[i];
+        AVStream *out_stream = avformat_new_stream(ofmt_ctx, nullptr);
+        avcodec_parameters_copy(out_stream->codecpar, in_stream->codecpar);
+        out_stream->codecpar->codec_tag = 0;
+    }
+
+    if (!(ofmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+        ret = avio_open(&ofmt_ctx->pb, out_path, AVIO_FLAG_WRITE);
+        if (ret < 0) return ret;
+    }
+
+    avformat_write_header(ofmt_ctx, nullptr);
+
+    while (av_read_frame(ifmt_ctx, &pkt) >= 0) {
+        AVStream *in_stream  = ifmt_ctx->streams[pkt.stream_index];
+        AVStream *out_stream = ofmt_ctx->streams[pkt.stream_index];
+        pkt.pts = av_rescale_q_rnd(pkt.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
+        pkt.dts = av_rescale_q_rnd(pkt.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
+        pkt.duration = av_rescale_q(pkt.duration, in_stream->time_base, out_stream->time_base);
+        pkt.pos = -1;
+        av_interleaved_write_frame(ofmt_ctx, &pkt);
         av_packet_unref(&pkt);
     }
 
-    av_write_trailer(ofmt);
-    avformat_close_input(&ifmt);
-    if (ofmt) avio_closep(&ofmt->pb);
-    avformat_free_context(ofmt);
-    send_to_java("[Status] BERHASIL DISIMPAN!");
-}
+    av_write_trailer(ofmt_ctx);
+    avformat_close_input(&ifmt_ctx);
+    if (ofmt_ctx && !(ofmt_ctx->oformat->flags & AVFMT_NOFILE)) avio_closep(&ofmt_ctx->pb);
+    avformat_free_context(ofmt_ctx);
 
-jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-    g_vm = vm;
-    return JNI_VERSION_1_6;
-}
-
-extern "C" JNIEXPORT jstring JNICALL Java_com_bigo_posix_MainActivity_stringFromJNI(JNIEnv* env, jobject thiz) {
-    return env->NewStringUTF("POSIX v1.2");
-}
-
-extern "C" JNIEXPORT jint JNICALL Java_com_bigo_posix_MainActivity_startRecording(JNIEnv* env, jobject thiz, jstring url, jstring out) {
-    if (g_obj) env->DeleteGlobalRef(g_obj);
-    g_obj = env->NewGlobalRef(thiz);
-    
-    const char *c_url = env->GetStringUTFChars(url, 0);
-    const char *c_out = env->GetStringUTFChars(out, 0);
-    
-    keep_running = true;
-    std::thread(record_stream, std::string(c_url), std::string(c_out)).detach();
-    
-    env->ReleaseStringUTFChars(url, c_url);
-    env->ReleaseStringUTFChars(out, c_out);
+    env->ReleaseStringUTFChars(input_url, in_url);
+    env->ReleaseStringUTFChars(output_path, out_path);
+    LOGI("[DONE] Rekaman Selesai!");
     return 0;
-}
-
-extern "C" JNIEXPORT void JNICALL Java_com_bigo_posix_MainActivity_stopRecording(JNIEnv* env, jobject thiz) {
-    keep_running = false;
 }
