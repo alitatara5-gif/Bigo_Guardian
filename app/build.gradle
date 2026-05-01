@@ -3,7 +3,6 @@ plugins {
 }
 
 android {
-    // Pindah package ke namespace (syarat Gradle terbaru)
     namespace 'com.example.bigoguardian'
     compileSdk 34
 
@@ -24,6 +23,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     
@@ -33,7 +33,6 @@ android {
         }
     }
 
-    // Cara simpel masukin .so tanpa bikin bentrok configuration
     sourceSets {
         main {
             jniLibs.srcDirs = ['src/main/jniLibs']
