@@ -16,26 +16,29 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Langkah tambahan: Pasang NDK yang pas
       - name: Set up NDK
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r25c # Versi stabil untuk FFmpeg
+          ndk-version: r25c
 
       - name: Build FFmpeg via Android Maker
-        env:
-          # Kita kasih tahu script-nya lokasi SDK & NDK di server GitHub
-          ANDROID_SDK_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          # Pasang tool pendukung biar gak error tengah jalan
+          # 1. Install alat tempur
           sudo apt-get update
           sudo apt-get install -y build-essential nasm yasm cmake ninja-build pkg-config
-          
-          # Mulai ngerakit
+
+          # 2. Persiapan Folder
           git clone https://github.com/Javernaut/ffmpeg-android-maker.git
           cd ffmpeg-android-maker
+
+          # 3. EXPORT LANGSUNG (Ini kuncinya, Bang!)
+          # Kita arahkan ke folder standar SDK di GitHub Runner
+          export ANDROID_SDK_HOME=/usr/local/lib/android/sdk
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+
+          # 4. Jalankan Perakit
           ./ffmpeg-android-maker.sh \
             --target-abis=arm64-v8a \
             --enable-openssl \
