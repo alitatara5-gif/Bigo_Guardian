@@ -3,20 +3,22 @@ plugins {
 }
 
 android {
-    namespace 'com.bigo.posix'
+    namespace 'com.example.bigoguardian'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.bigo.posix"
-        minSdk 21
+        applicationId "com.example.bigoguardian"
+        minSdk 24
         targetSdk 34
         versionCode 1
         versionName "1.0"
 
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
         externalNativeBuild {
             cmake {
-                cppFlags "-std=c++17"
-                arguments "-DANDROID_STL=c++_shared"
+                cppFlags ""
+                // Pastikan dia fokus ke arsitektur HP Abang
                 abiFilters "arm64-v8a"
             }
         }
@@ -36,21 +38,17 @@ android {
         }
     }
 
+    // Supaya Gradle nggak bingung nyari .so di tempat lain
     sourceSets {
         main {
             jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
-
-    // FIX: Mencegah error duplikat file .so saat build
-    packaging {
-        jniLibs {
-            pickFirsts += ['**/libc++_shared.so']
-        }
-    }
 }
 
 dependencies {
+    // Tambahkan library dasar supaya processDebugResources nggak error
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }
