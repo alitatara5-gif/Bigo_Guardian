@@ -3,14 +3,17 @@
 #include <unistd.h>
 #include <atomic>
 #include <map>
+#include <mutex>
 
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/timestamp.h>
+#include <libavutil/mathematics.h>
 }
 
 // Map untuk menyimpan flag stop setiap rekaman berdasarkan ID
 std::map<int, std::atomic<bool>*> stop_flags;
+std::mutex stop_flags_mutex;
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_bigoguardian_RecorderService_startNativeRecording(JNIEnv *env, jobject thiz, jint id, jstring jurl, jstring jpath) {
@@ -18,7 +21,10 @@ Java_com_example_bigoguardian_RecorderService_startNativeRecording(JNIEnv *env, 
     const char *path = env->GetStringUTFChars(jpath, 0);
     
     std::atomic<bool> *stop_ptr = new std::atomic<bool>(false);
-    stop_flags[id] = stop_ptr;
+    {
+        std::lock_guard<std::mutex> lock(stop_flags_mutex);
+        stop_flags[id] = stop_ptr;
+    }
 
     AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx = NULL;
     AVPacket pkt;
@@ -48,8 +54,9 @@ Java_com_example_bigoguardian_RecorderService_startNativeRecording(JNIEnv *env, 
         AVStream *in_stream = ifmt_ctx->streams[pkt.stream_index];
         AVStream *out_stream = ofmt_ctx->streams[pkt.stream_index];
         
-        pkt.pts = av_rescale_q_nd(pkt.pts, in_stream->time_base, out_stream->time_base);
-        pkt.dts = av_rescale_q_nd(pkt.dts, in_stream->time_base, out_stream->time_base);
+        // --- PERBAIKAN DI SINI (av_rescale_q_nd jadi av_rescale_q) ---
+        pkt.pts = av_rescale_q(pkt.pts, in_stream->time_base, out_stream->time_base);
+        pkt.dts = av_rescale_q(pkt.dts, in_stream->time_base, out_stream->time_base);
         pkt.duration = av_rescale_q(pkt.duration, in_stream->time_base, out_stream->time_base);
         pkt.pos = -1;
 
@@ -64,11 +71,19 @@ Java_com_example_bigoguardian_RecorderService_startNativeRecording(JNIEnv *env, 
     
     env->ReleaseStringUTFChars(jurl, url);
     env->ReleaseStringUTFChars(jpath, path);
+    
+    {
+        std::lock_guard<std::mutex> lock(stop_flags_mutex);
+        delete stop_ptr;
+        stop_flags.erase(id);
+    }
+    
     return 0;
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_example_bigoguardian_RecorderService_stopNativeRecording(JNIEnv *env, jobject thiz, jint id) {
+    std::lock_guard<std::mutex> lock(stop_flags_mutex);
     if (stop_flags.count(id)) {
         stop_flags[id]->store(true);
     }
