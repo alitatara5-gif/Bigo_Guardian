@@ -3,6 +3,8 @@ package com.example.bigoguardian;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
+import android.os.Environment;
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -35,11 +37,15 @@ public class RecorderService extends Service {
         if (intent != null) {
             int id = intent.getIntExtra("id", 0);
             String url = intent.getStringExtra("url");
-            String path = getExternalFilesDir(null) + "/rec_" + id + ".ts";
+            
+            // PINDAH KE FOLDER PUBLIK: /sdcard/Movies/BigoGuardian/
+            File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "BigoGuardian");
+            if (!dir.exists()) dir.mkdirs();
+            
+            String path = dir.getAbsolutePath() + "/rec_" + id + ".ts";
             
             executor.execute(() -> {
                 startNativeRecording(id, url, path);
-                // Setelah selesai rekam, panggil fungsi remux (next update)
             });
         }
         return START_STICKY;
