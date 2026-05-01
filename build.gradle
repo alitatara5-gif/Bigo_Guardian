@@ -10,7 +10,7 @@ buildscript {
 }
 
 allprojects {
-    // Kosongkan bagian repositories di sini untuk menghindari konflik dengan settings.gradle
+    // Kosongkan agar tidak konflik dengan settings.gradle
 }
 
 task clean(type: Delete) {
