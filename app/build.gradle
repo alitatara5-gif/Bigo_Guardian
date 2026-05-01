@@ -13,12 +13,9 @@ android {
         versionCode 1
         versionName "1.0"
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        
         externalNativeBuild {
             cmake {
                 cppFlags ""
-                // Pastikan dia fokus ke arsitektur HP Abang
                 abiFilters "arm64-v8a"
             }
         }
@@ -37,18 +34,9 @@ android {
             version "3.22.1"
         }
     }
-
-    // Supaya Gradle nggak bingung nyari .so di tempat lain
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['src/main/jniLibs']
-        }
-    }
 }
 
 dependencies {
-    // Tambahkan library dasar supaya processDebugResources nggak error
+    // Pakai yang paling standar aja dulu Bang
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }
