@@ -16,6 +16,9 @@
             </intent-filter>
         </activity>
         
-        <service android:name=".RecorderService" android:exported="false" android:foregroundServiceType="specialUse" />
+        <service 
+            android:name=".RecorderService" 
+            android:exported="false" 
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 </manifest>
