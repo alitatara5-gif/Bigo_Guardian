@@ -1,24 +1,40 @@
 package com.example.bigoguardian;
 
 import android.app.Activity;
-import android.content.Intent;
-import android.os.Bundle;
-import android.os.Handler;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.content.*;
+import android.content.pm.PackageManager;
+import android.os.*;
+import android.view.*;
 import android.widget.*;
+import android.Manifest;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
     ArrayList<RecordModel> list = new ArrayList<>();
     BaseAdapter adapter;
     int counter = 0;
+    RecorderService mService;
+    boolean mBound = false;
+
+    private ServiceConnection connection = new ServiceConnection() {
+        @Override public void onServiceConnected(ComponentName n, IBinder s) {
+            mService = ((RecorderService.LocalBinder) s).getService();
+            mBound = true;
+        }
+        @Override public void onServiceDisconnected(ComponentName n) { mBound = false; }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        
+        // MINTA IZIN STORAGE
+        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE}, 101);
+        }
+
+        bindService(new Intent(this, RecorderService.class), connection, Context.BIND_AUTO_CREATE);
 
         EditText input = findViewById(R.id.inputUrl);
         ListView listView = findViewById(R.id.listRecordings);
@@ -31,14 +47,11 @@ public class MainActivity extends Activity {
                 if (v == null) v = LayoutInflater.from(MainActivity.this).inflate(R.layout.list_item, p, false);
                 RecordModel m = list.get(i);
                 ((TextView)v.findViewById(R.id.txtUrl)).setText(m.url);
-                TextView txtDur = v.findViewById(R.id.txtDuration);
-                txtDur.setText("Durasi: " + m.getDurationStr());
+                long curDur = mBound ? mService.getNativeDuration(m.id) : 0;
+                ((TextView)v.findViewById(R.id.txtDuration)).setText("Durasi: " + getDurationStr(curDur));
                 
                 v.findViewById(R.id.btnStop).setOnClickListener(view -> {
-                    Intent it = new Intent(MainActivity.this, RecorderService.class);
-                    it.setAction("STOP");
-                    it.putExtra("id", m.id);
-                    startService(it);
+                    if (mBound) mService.stopNativeRecording(m.id);
                     list.remove(i);
                     notifyDataSetChanged();
                 });
@@ -47,7 +60,6 @@ public class MainActivity extends Activity {
         };
 
         listView.setAdapter(adapter);
-
         findViewById(R.id.btnStart).setOnClickListener(v -> {
             String url = input.getText().toString();
             if (!url.isEmpty()) {
@@ -62,24 +74,21 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Loop untuk update durasi real-time
         Handler h = new Handler();
         h.postDelayed(new Runnable() {
             @Override public void run() {
-                for (RecordModel m : list) m.seconds++;
                 adapter.notifyDataSetChanged();
                 h.postDelayed(this, 1000);
             }
         }, 1000);
     }
 
+    private String getDurationStr(long sec) {
+        return String.format("%02d:%02d:%02d", sec / 3600, (sec % 3600) / 60, sec % 60);
+    }
+
     class RecordModel {
-        int id, seconds = 0;
-        String url;
+        int id; String url;
         RecordModel(int id, String url) { this.id = id; this.url = url; }
-        String getDurationStr() {
-            int h = seconds / 3600, m = (seconds % 3600) / 60, s = seconds % 60;
-            return String.format("%02d:%02d:%02d", h, m, s);
-        }
     }
 }
