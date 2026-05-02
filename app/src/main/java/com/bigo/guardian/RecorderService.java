@@ -10,7 +10,6 @@ import java.io.File;
 
 public class RecorderService extends Service {
     private long sessionId = 0;
-    private PowerManager.WakeLock wakeLock;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -19,33 +18,29 @@ public class RecorderService extends Service {
 
         sessionId = System.currentTimeMillis();
         
-        // Matikan sinyal SIGPIPE (13) agar tidak crash
-        try { FFmpegKitConfig.ignoreNativeSignal(13); } catch (Throwable t) {}
-
-        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Bigo:RecLock");
-        wakeLock.acquire();
+        // Mencegah crash karena sinyal pipa (SIGPIPE)
+        try { FFmpegKitConfig.ignoreNativeSignal(13); } catch (Exception e) {}
 
         File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "BigoGuardian");
         if (!dir.exists()) dir.mkdirs();
-        String path = new File(dir, "Rec_" + (sessionId/1000) + ".mp4").getAbsolutePath();
+        String path = new File(dir, "Rekaman_" + (sessionId/1000) + ".mp4").getAbsolutePath();
 
-        NotificationChannel chan = new NotificationChannel("rec", "Bigo Recorder", NotificationManager.IMPORTANCE_LOW);
+        NotificationChannel chan = new NotificationChannel("rec", "Recorder", NotificationManager.IMPORTANCE_LOW);
         getSystemService(NotificationManager.class).createNotificationChannel(chan);
         startForeground(1, new NotificationCompat.Builder(this, "rec")
                 .setContentTitle("Bigo Guardian")
-                .setContentText("Merekam ke MP4...")
+                .setContentText("Sedang merekam...")
                 .setSmallIcon(android.R.drawable.ic_media_play).build());
 
         new Thread(() -> {
-            // Format CMD bersih tanpa escape character berlebih
+            // Gunakan string bersih tanpa escape character manual
             String cmd = "-y -i " + url + " -c copy -bsf:a aac_adtstoasc " + path;
             Log.d("BIGO_DEBUG", "Menjalankan: " + cmd);
             
             try {
                 FFmpegKitConfig.nativeFFmpegExecute(sessionId, cmd);
-            } catch (Throwable e) {
-                Log.e("BIGO_DEBUG", "JNI Crash: " + e.getMessage());
+            } catch (Throwable t) {
+                Log.e("BIGO_DEBUG", "Crash di mesin native: " + t.getMessage());
             }
             stopSelf();
         }).start();
@@ -55,8 +50,7 @@ public class RecorderService extends Service {
 
     @Override
     public void onDestroy() {
-        try { FFmpegKitConfig.nativeFFmpegCancel(sessionId); } catch (Throwable t) {}
-        if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        try { FFmpegKitConfig.nativeFFmpegCancel(sessionId); } catch (Exception e) {}
         super.onDestroy();
     }
 
