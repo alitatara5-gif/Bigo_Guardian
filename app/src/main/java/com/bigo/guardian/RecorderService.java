@@ -26,12 +26,17 @@ public class RecorderService extends Service {
         if (!dir.exists()) dir.mkdirs();
         String path = new File(dir, "Rec_" + (sessionId/1000) + ".mp4").getAbsolutePath();
 
+        // Buat channel notifikasi agar aman di Android 8+
+        NotificationChannel chan = new NotificationChannel("recorder", "Bigo Guardian", NotificationManager.IMPORTANCE_LOW);
+        getSystemService(NotificationManager.class).createNotificationChannel(chan);
+
         startForeground(1, new NotificationCompat.Builder(this, "recorder")
                 .setContentTitle("Bigo Guardian")
                 .setContentText("Merekam stream...")
                 .setSmallIcon(android.R.drawable.ic_media_play).build());
 
         new Thread(() -> {
+            // Gunakan tanda kutip pada URL dan Path agar tidak error jika ada spasi
             String cmd = "-y -i \"" + url + "\" -c copy -bsf:a aac_adtstoasc \"" + path + "\"";
             FFmpegKitConfig.nativeFFmpegExecute(sessionId, cmd);
             isRecording = false;
@@ -48,6 +53,7 @@ public class RecorderService extends Service {
         isRecording = false;
         super.onDestroy();
     }
+
     @Override
     public IBinder onBind(Intent intent) { return null; }
 }
