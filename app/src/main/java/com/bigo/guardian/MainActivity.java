@@ -19,19 +19,28 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Inisialisasi View
         txtStatus = findViewById(R.id.txtStatus);
         listRekaman = findViewById(R.id.listRekaman);
         btnStart = findViewById(R.id.btnStart);
         btnStop = findViewById(R.id.btnStop);
         inputUrl = findViewById(R.id.inputUrl);
 
+        // IZIN NOTIFIKASI
         if (Build.VERSION.SDK_INT >= 33) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
             }
         }
 
+        // 1. CEK MESIN (Konfirmasi awal)
         checkEngine();
+
+        // 2. COLOK TOMBOL (Ini yang tadi ketinggalan)
+        btnStart.setOnClickListener(v -> startRecording());
+        btnStop.setOnClickListener(v -> stopRecording());
+
+        // 3. SINKRONISASI UI & DURASI
         syncUI();
         handler.post(durationUpdater);
     }
@@ -71,9 +80,14 @@ public class MainActivity extends Activity {
 
     private void startRecording() {
         String url = inputUrl.getText().toString();
-        if (url.isEmpty()) return;
+        if (url.isEmpty()) {
+            Toast.makeText(this, "Link kosong Bang!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         btnStart.setVisibility(View.GONE);
         btnStop.setVisibility(View.VISIBLE);
+        
         Intent it = new Intent(this, RecorderService.class);
         it.putExtra("url", url);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
