@@ -12,14 +12,17 @@ public class RecorderService extends Service {
     public static long startTime = 0;
     public static String currentFile = "";
 
+    // Load library FFmpegKit
     static {
-        // Load library FFmpegKit secara berurutan
         System.loadLibrary("c++_shared");
         System.loadLibrary("avutil");
         System.loadLibrary("avcodec");
         System.loadLibrary("avformat");
         System.loadLibrary("ffmpegkit");
     }
+
+    // Fungsi native untuk menjalankan perintah FFmpeg
+    public native int runFFmpeg(String cmd);
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -35,11 +38,16 @@ public class RecorderService extends Service {
 
         startForeground(1, createNotification());
 
-        // LOGIKA: Di sini nanti kita panggil perintah FFmpegKit 
-        // Untuk sementara kita jalankan Thread agar UI tersinkron
         new Thread(() -> {
-            Log.d("BIGO", "Memulai FFmpegKit rekam ke: " + savePath);
-            // Simulasi proses
+            // PERINTAH SAKTI UNTUK MEREKAM M3U8 KE MP4
+            // -y (overwrite), -i (input), -c copy (tanpa encoding ulang/cepat), -bsf:a (fix audio)
+            String ffmpegCommand = "-y -i " + url + " -c copy -bsf:a aac_adtstoasc " + savePath;
+            Log.d("BIGO", "Menjalankan FFmpeg: " + ffmpegCommand);
+            
+            runFFmpeg(ffmpegCommand);
+            
+            isRecording = false;
+            stopSelf();
         }).start();
 
         return START_STICKY;
@@ -50,7 +58,7 @@ public class RecorderService extends Service {
         getSystemService(NotificationManager.class).createNotificationChannel(chan);
         return new NotificationCompat.Builder(this, "recorder")
                 .setContentTitle("Bigo Guardian (FFmpegKit)")
-                .setContentText("Merekam stream...")
+                .setContentText("Sedang merekam stream...")
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .build();
     }
